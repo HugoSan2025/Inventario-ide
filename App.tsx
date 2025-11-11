@@ -8,15 +8,14 @@ import ConfirmModal from './components/ConfirmModal';
 import { db } from './firebaseConfig';
 import { 
     collection, 
-    getDocs, 
     doc, 
-    getDoc, 
     setDoc, 
     addDoc, 
     deleteDoc, 
     writeBatch, 
     query, 
-    orderBy 
+    orderBy,
+    onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 
@@ -25,82 +24,88 @@ const App: React.FC = () => {
     const productsCollectionName = `products_${warehouseName}`;
     const transactionsCollectionName = `transactions_${warehouseName}`;
 
-    // Inicializar el estado con la lista de productos local para una carga instantánea y a prueba de fallos.
+    // Initialize state with local product list for instant & fallback loading.
     const [products, setProducts] = useState<Product[]>(productList);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [markedTransactionIds, setMarkedTransactionIds] = useState<Set<string>>(new Set());
     const isInitialMount = useRef(true);
     
-    // Efecto de carga de datos desde Firestore
+    // Real-time data loading effect from Firestore
     useEffect(() => {
         const productsColRef = collection(db, productsCollectionName);
         const transactionsColRef = collection(db, transactionsCollectionName);
         const metadataDocRef = doc(db, "metadata", warehouseName);
 
-        const syncWithFirestore = async () => {
-            try {
-                // 1. Intenta obtener productos de Firestore
-                const productSnapshot = await getDocs(productsColRef);
-                const firestoreProducts = productSnapshot.docs.map(doc => doc.data() as Product);
+        console.log("Setting up real-time listeners...");
 
-                // Si Firestore está vacío y la lista local tiene productos, siémbralo.
-                if (firestoreProducts.length === 0 && productList.length > 0) {
-                    console.log("La lista de productos en Firestore está vacía. Sembrando desde el archivo local...");
-                    const batch = writeBatch(db);
-                    productList.forEach((product) => {
-                        const productRef = doc(db, productsCollectionName, product.id);
-                        batch.set(productRef, product);
-                    });
-                    await batch.commit();
-                    console.log("Siembra completa. Usando la lista local para esta sesión.");
-                    // El estado ya refleja la lista local, por lo que no se necesita ningún cambio.
-                } else if (firestoreProducts.length > 0) {
-                    // Si Firestore tiene datos, se convierte en la fuente de la verdad.
-                    console.log("Productos cargados exitosamente desde Firestore.");
-                    firestoreProducts.sort((a, b) => a.id.localeCompare(b.id));
-                    setProducts(firestoreProducts);
-                }
+        // Listener for Products
+        const unsubscribeProducts = onSnapshot(productsColRef, async (productSnapshot) => {
+            const firestoreProducts = productSnapshot.docs.map(doc => doc.data() as Product);
 
-                // 2. Obtener transacciones
-                const transactionsQuery = query(transactionsColRef, orderBy("date", "asc"));
-                const transactionSnapshot = await getDocs(transactionsQuery);
-                const fetchedTransactions = transactionSnapshot.docs.map(doc => {
-                    const data = doc.data();
-                    return {
-                        id: doc.id,
-                        productId: data.productId,
-                        type: data.type,
-                        quantity: data.quantity,
-                        date: data.date,
-                        batch: data.batch,
-                        subwarehouse: data.subwarehouse,
-                    } as Transaction;
+            // If Firestore is empty and local list has products, seed it.
+            if (firestoreProducts.length === 0 && productList.length > 0) {
+                console.log("Product list in Firestore is empty. Seeding from local file...");
+                const batch = writeBatch(db);
+                productList.forEach((product) => {
+                    const productRef = doc(db, productsCollectionName, product.id);
+                    batch.set(productRef, product);
                 });
-                setTransactions(fetchedTransactions);
-
-                // 3. Obtener IDs de transacciones marcadas
-                const metadataSnapshot = await getDoc(metadataDocRef);
-                if (metadataSnapshot.exists()) {
-                    const data = metadataSnapshot.data();
-                    setMarkedTransactionIds(new Set(data.markedIds || []));
-                }
-            } catch (error) {
-                console.error("No se pudo sincronizar con Firestore. Mostrando la lista de productos local como respaldo. Las transacciones no se cargarán ni guardarán.", error);
-                // El estado de los productos ya está configurado en la lista local.
-                // Otros estados (transacciones, markedIds) permanecerán vacíos.
-                // Este es el comportamiento de respaldo deseado.
-            } finally {
-                isInitialMount.current = false;
+                await batch.commit();
+                console.log("Seeding complete. Using local list for this session.");
+                // State already reflects local list, no state change needed.
+            } else if (firestoreProducts.length > 0) {
+                firestoreProducts.sort((a, b) => a.id.localeCompare(b.id));
+                setProducts(firestoreProducts);
             }
+        }, (error) => {
+            console.error("Could not sync products with Firestore. Displaying local product list as a fallback.", error);
+        });
+
+        // Listener for Transactions
+        const transactionsQuery = query(transactionsColRef, orderBy("date", "asc"));
+        const unsubscribeTransactions = onSnapshot(transactionsQuery, (transactionSnapshot) => {
+            const fetchedTransactions = transactionSnapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    productId: data.productId,
+                    type: data.type,
+                    quantity: data.quantity,
+                    date: data.date,
+                    batch: data.batch,
+                    subwarehouse: data.subwarehouse,
+                } as Transaction;
+            });
+            setTransactions(fetchedTransactions);
+        }, (error) => {
+            console.error("Could not sync transactions with Firestore. Transactions will not be loaded or saved.", error);
+        });
+
+        // Listener for Marked Transaction IDs
+        const unsubscribeMetadata = onSnapshot(metadataDocRef, (metadataSnapshot) => {
+            if (metadataSnapshot.exists()) {
+                const data = metadataSnapshot.data();
+                setMarkedTransactionIds(new Set(data.markedIds || []));
+            }
+        }, (error) => {
+            console.error("Could not sync marked transaction IDs.", error);
+        });
+
+        // Cleanup function to detach listeners on unmount
+        return () => {
+            console.log("Detaching real-time listeners.");
+            unsubscribeProducts();
+            unsubscribeTransactions();
+            unsubscribeMetadata();
         };
-
-        syncWithFirestore();
-
-    }, []); // Se ejecuta solo al montar
+    }, []); // Runs only on mount
 
     // Effect to save markedTransactionIds to Firestore when it changes
     useEffect(() => {
+        // Prevent writing to Firestore on initial render before data is loaded.
         if (isInitialMount.current) {
+            // The ref is switched to false after the first successful user interaction (marking a transaction).
+            // This prevents overwriting Firestore with the initial empty set.
             return;
         }
         const metadataDocRef = doc(db, "metadata", warehouseName);
@@ -249,8 +254,8 @@ const App: React.FC = () => {
         const transactionData = { ...newTx, date: new Date().toISOString() };
         try {
             const transactionsColRef = collection(db, transactionsCollectionName);
-            const docRef = await addDoc(transactionsColRef, transactionData);
-            setTransactions(prev => [...prev, { ...transactionData, id: docRef.id }]);
+            await addDoc(transactionsColRef, transactionData);
+            // State will be updated by the real-time listener, no need for setTransactions here.
         } catch (e) {
             console.error("Error adding document: ", e);
             // Optionally: show an error modal to the user
@@ -266,7 +271,7 @@ const App: React.FC = () => {
                 try {
                     const docRef = doc(db, transactionsCollectionName, transactionId);
                     await deleteDoc(docRef);
-                    setTransactions(prev => prev.filter(tx => tx.id !== transactionId));
+                    // State will be updated by the real-time listener.
                     closeModal();
                 } catch (error) {
                     console.error("Error deleting transaction:", error);
@@ -372,18 +377,16 @@ const App: React.FC = () => {
                 onConfirm: async () => {
                     const transactionsColRef = collection(db, transactionsCollectionName);
                     const batch = writeBatch(db);
-                    const newTransactionsForState: Transaction[] = [];
-
+                    
                     newEntries.forEach(entry => {
-                        const newDocRef = doc(transactionsColRef); // Auto-generate ID from Firestore
+                        const newDocRef = doc(transactionsColRef); // Auto-generate ID
                         const transactionData = { ...entry, date: new Date().toISOString() };
                         batch.set(newDocRef, transactionData);
-                        newTransactionsForState.push({ ...transactionData, id: newDocRef.id });
                     });
 
                     try {
                         await batch.commit();
-                        setTransactions(prev => [...prev, ...newTransactionsForState]);
+                        // State will be updated by the real-time listener.
                         closeModal();
                     } catch (error) {
                         console.error("Error importing transactions:", error);
@@ -405,6 +408,9 @@ const App: React.FC = () => {
     }, [productMap, transactionsCollectionName]);
 
     const handleToggleMarkTransaction = useCallback((transactionId: string) => {
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+        }
         setMarkedTransactionIds(prev => {
             const newSet = new Set(prev);
             if (newSet.has(transactionId)) {
