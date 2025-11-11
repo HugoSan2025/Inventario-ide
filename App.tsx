@@ -185,7 +185,7 @@ const App: React.FC = () => {
                 (stockLevelFilters.has(5) && product.stock >= 5);
 
             return matchesSearch && matchesSubwarehouse && matchesStockLevel;
-        });
+        }).sort((a, b) => a.name.localeCompare(b.name));
     }, [productsWithStock, searchQuery, stockSubwarehouseFilter, stockLevelFilters]);
     
     const entries = useMemo(() => transactions.filter(tx => tx.type === TransactionType.ENTRY), [transactions]);

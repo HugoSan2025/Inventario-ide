@@ -99,18 +99,22 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
 
         const transactionType = activeTab === 'entries' ? TransactionType.ENTRY : TransactionType.EXIT;
 
-        if (transactionType === TransactionType.EXIT && !batch.trim()) {
-            alert('Por favor, ingrese el lote para la salida.');
-            return;
-        }
-        
-        onNewTransaction({
+        const newTxData: Omit<Transaction, 'id' | 'date'> = {
             productId: selectedProductId,
             quantity,
             type: transactionType,
-            batch: transactionType === TransactionType.EXIT ? batch : undefined,
             subwarehouse: product.subwarehouse,
-        });
+        };
+
+        if (transactionType === TransactionType.EXIT) {
+            if (!batch.trim()) {
+                alert('Por favor, ingrese el lote para la salida.');
+                return;
+            }
+            newTxData.batch = batch;
+        }
+        
+        onNewTransaction(newTxData);
 
         // Reset form
         setSelectedProductId('');
