@@ -125,17 +125,18 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
         const isExitTable = type === 'exit';
         return (
              <div className="overflow-x-auto">
-                <table className={`${isExitTable ? 'w-full table-fixed' : 'min-w-full'} divide-y divide-slate-700`}>
+                <table className="w-full table-fixed divide-y divide-slate-700">
                     <thead className="bg-slate-800/80">
                         <tr>
-                            {isExitTable && <th scope="col" className="w-[7%] py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-slate-300 sm:pl-6">MARCAR</th>}
-                            <th scope="col" className={`py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-300 sm:pl-6 ${isExitTable ? 'w-[10%]' : ''}`}>FECHA</th>
-                            <th scope="col" className={`px-3 py-3.5 text-left text-sm font-semibold text-slate-300 ${isExitTable ? 'w-[12%]' : ''}`}>CÓDIGO DE ITEM</th>
-                            <th scope="col" className={`px-3 py-3.5 text-center text-sm font-semibold text-slate-300 ${isExitTable ? 'w-[28%]' : ''}`}>NOMBRE DEL PRODUCTO</th>
-                            {isExitTable && <th scope="col" className="w-[15%] px-3 py-3.5 text-left text-sm font-semibold text-slate-300">SUBALMACÉN</th>}
-                            {isExitTable && <th scope="col" className="w-[10%] px-3 py-3.5 text-left text-sm font-semibold text-slate-300">LOTE</th>}
-                            <th scope="col" className={`px-3 py-3.5 text-right text-sm font-semibold text-slate-300 ${isExitTable ? 'w-[8%]' : ''}`}>CANTIDAD</th>
-                            <th scope="col" className={`relative py-3.5 pl-3 pr-4 sm:pr-6 ${isExitTable ? 'w-[10%]' : ''}`}><span className="sr-only">Acciones</span></th>
+                            {isExitTable && <th scope="col" className="w-16 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-slate-300 sm:pl-6">MARCAR</th>}
+                            <th scope="col" className={`py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-300 sm:pl-6 ${isExitTable ? 'w-24' : 'w-auto'}`}>FECHA</th>
+                            <th scope="col" className={`px-3 py-3.5 text-left text-sm font-semibold text-slate-300 ${isExitTable ? 'w-28' : 'w-auto'}`}>CÓDIGO DE ITEM</th>
+                            <th scope="col" className={`px-3 py-3.5 text-center text-sm font-semibold text-slate-300 ${isExitTable ? '' : 'w-auto'}`}>NOMBRE DEL PRODUCTO</th>
+                            {isExitTable && <th scope="col" className="w-48 px-3 py-3.5 text-left text-sm font-semibold text-slate-300">SUBALMACÉN</th>}
+                            {isExitTable && <th scope="col" className="w-24 pl-5 pr-3 py-3.5 text-left text-sm font-semibold text-slate-300">LOTE</th>}
+                            {isExitTable && <th scope="col" className="w-24 px-3 py-3.5 text-left text-sm font-semibold text-slate-300">NOTAS</th>}
+                            <th scope="col" className={`px-3 py-3.5 text-right text-sm font-semibold text-slate-300 ${isExitTable ? 'w-12' : 'w-auto'}`}>CANTIDAD</th>
+                            <th scope="col" className={`relative py-3.5 pl-3 pr-4 sm:pr-6 ${isExitTable ? 'w-16' : 'w-auto'}`}><span className="sr-only">Acciones</span></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800 bg-slate-900/60">
@@ -155,7 +156,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
                                     <td className="whitespace-nowrap px-3 py-4 text-sm font-mono text-slate-400">{tx.productId}</td>
                                     <td 
                                         title={product?.name || 'Producto no encontrado'}
-                                        className={`px-3 py-4 text-xs font-bold text-slate-200 ${isExitTable ? 'truncate' : 'whitespace-nowrap'}`}
+                                        className="truncate px-3 py-4 text-xs font-bold text-slate-200"
                                     >
                                         {product?.name || 'Producto no encontrado'}
                                     </td>
@@ -164,7 +165,12 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
                                             {tx.subwarehouse}
                                         </td>
                                     }
-                                    {isExitTable && <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-300">{tx.batch}</td>}
+                                    {isExitTable && <td className="whitespace-nowrap pl-5 pr-3 py-4 text-sm text-slate-300">{tx.batch}</td>}
+                                    {isExitTable && (
+                                        <td title={tx.notes || ''} className="truncate px-3 py-4 text-sm text-slate-400">
+                                          {tx.notes}
+                                        </td>
+                                    )}
                                     <td className={`whitespace-nowrap px-3 py-4 text-right text-sm font-bold ${type === 'entry' ? 'text-green-400' : 'text-red-400'}`}>
                                         {type === 'entry' ? '+' : '-'}{tx.quantity}
                                     </td>
@@ -177,7 +183,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
                             )
                         }) : (
                             <tr>
-                                <td colSpan={isExitTable ? 8 : 5} className="py-8 text-center text-slate-400">No hay transacciones.</td>
+                                <td colSpan={isExitTable ? 9 : 5} className="py-8 text-center text-slate-400">No hay transacciones.</td>
                             </tr>
                         )}
                     </tbody>
@@ -202,8 +208,8 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
                         data = entryTransactions.map(tx => ({ FECHA: new Date(tx.date).toLocaleDateString(), "CÓDIGO DE ITEM": tx.productId, "NOMBRE DEL PRODUCTO": productMap.get(tx.productId)?.name || "", CANTIDAD: tx.quantity }));
                         name = "Reporte_Entradas";
                     } else if (activeTab === 'exits') {
-                        headers = ["FECHA", "CÓDIGO DE ITEM", "NOMBRE DEL PRODUCTO", "SUBALMACÉN", "LOTE", "CANTIDAD"];
-                        data = exitTransactions.map(tx => ({ FECHA: new Date(tx.date).toLocaleDateString(), "CÓDIGO DE ITEM": tx.productId, "NOMBRE DEL PRODUCTO": productMap.get(tx.productId)?.name || "", "SUBALMACÉN": tx.subwarehouse || "", LOTE: tx.batch || "", CANTIDAD: tx.quantity }));
+                        headers = ["FECHA", "CÓDIGO DE ITEM", "NOMBRE DEL PRODUCTO", "SUBALMACÉN", "LOTE", "CANTIDAD", "NOTAS"];
+                        data = exitTransactions.map(tx => ({ FECHA: new Date(tx.date).toLocaleDateString(), "CÓDIGO DE ITEM": tx.productId, "NOMBRE DEL PRODUCTO": productMap.get(tx.productId)?.name || "", "SUBALMACÉN": tx.subwarehouse || "", LOTE: tx.batch || "", CANTIDAD: tx.quantity, NOTAS: tx.notes || "" }));
                         name = "Reporte_Salidas";
                         format = 'csv';
                     } else {

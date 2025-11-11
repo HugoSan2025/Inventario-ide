@@ -74,6 +74,7 @@ const App: React.FC = () => {
                     date: data.date,
                     batch: data.batch,
                     subwarehouse: data.subwarehouse,
+                    notes: data.notes,
                 } as Transaction;
             });
             setTransactions(fetchedTransactions);
@@ -222,6 +223,7 @@ const App: React.FC = () => {
             const matchesSearch = product.name.toLowerCase().includes(searchLower) ||
                                   product.id.toLowerCase().includes(searchLower) ||
                                   (tx.batch && tx.batch.toLowerCase().includes(searchLower)) ||
+                                  (tx.notes && tx.notes.toLowerCase().includes(searchLower)) ||
                                   (tx.subwarehouse && tx.subwarehouse.toLowerCase().includes(searchLower));
             
             const matchesSubwarehouse = appliedExitSubwarehouseFilter === 'all' || tx.subwarehouse === appliedExitSubwarehouseFilter;

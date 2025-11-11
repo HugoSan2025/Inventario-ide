@@ -21,6 +21,7 @@ export interface Transaction {
   date: string;
   batch?: string;
   subwarehouse?: string;
+  notes?: string;
 }
 
 export type ActiveTab = 'stock' | 'entries' | 'exits';

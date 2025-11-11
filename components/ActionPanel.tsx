@@ -61,6 +61,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
     const [selectedProductId, setSelectedProductId] = useState<string>('');
     const [quantity, setQuantity] = useState<number>(1);
     const [batch, setBatch] = useState('');
+    const [notes, setNotes] = useState('');
     const [productSearch, setProductSearch] = useState('');
     
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -112,6 +113,9 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
                 return;
             }
             newTxData.batch = batch;
+            if (notes.trim()) {
+                newTxData.notes = notes.trim();
+            }
         }
         
         onNewTransaction(newTxData);
@@ -120,6 +124,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
         setSelectedProductId('');
         setQuantity(1);
         setBatch('');
+        setNotes('');
         setProductSearch('');
     };
     
@@ -225,18 +230,33 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
                      {selectedProduct && <p className="mt-1 text-xs text-slate-400">Subalmacén: {selectedProduct.subwarehouse}</p>}
                 </div>
                  {activeTab === 'exits' && (
-                    <div>
-                        <label htmlFor="batch" className="block text-sm font-medium text-slate-300 mb-1">Lote</label>
-                        <input
-                            id="batch"
-                            type="text"
-                            value={batch}
-                            onChange={(e) => setBatch(e.target.value)}
-                            required
-                            className="block w-full rounded-md border-slate-600 bg-slate-700 py-2 px-3 text-slate-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                            placeholder="Ej: LOTE12345"
-                        />
-                    </div>
+                    <>
+                        <div>
+                            <label htmlFor="batch" className="block text-sm font-medium text-slate-300 mb-1">Lote</label>
+                            <input
+                                id="batch"
+                                type="text"
+                                value={batch}
+                                onChange={(e) => setBatch(e.target.value)}
+                                required
+                                className="block w-full rounded-md border-slate-600 bg-slate-700 py-2 px-3 text-slate-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                                placeholder="Ej: LOTE12345"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="notes" className="block text-sm font-medium text-slate-300 mb-1">Notas (Opcional)</label>
+                            <textarea
+                                id="notes"
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                                maxLength={300}
+                                rows={3}
+                                className="block w-full rounded-md border-slate-600 bg-slate-700 py-2 px-3 text-slate-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                                placeholder="Ej: Producto para UCI, coordinado con Dr. Pérez..."
+                            />
+                             <p className="mt-1 text-xs text-slate-500 text-right">{notes.length} / 300</p>
+                        </div>
+                    </>
                 )}
                 <div>
                     <label htmlFor="quantity" className="block text-sm font-medium text-slate-300 mb-1">Cantidad</label>
