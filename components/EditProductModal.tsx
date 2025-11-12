@@ -51,7 +51,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ product, onSave, on
                                     <div className="mt-4 space-y-4">
                                         <div>
                                             <label htmlFor="product-id" className="block text-sm font-medium text-slate-400">
-                                                Código de Item (ID)
+                                                ITEM (ID)
                                             </label>
                                             <input
                                                 type="text"

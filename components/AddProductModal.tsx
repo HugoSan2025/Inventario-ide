@@ -41,7 +41,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onSave, onCan
         }
 
         if (existingIdsSet.has(trimmedId)) {
-            setError(`El Código de Item (ID) '${trimmedId}' ya existe. Por favor, ingrese un ID único.`);
+            setError(`El ITEM (ID) '${trimmedId}' ya existe. Por favor, ingrese un ID único.`);
             return;
         }
         
@@ -68,7 +68,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onSave, onCan
                                     <div className="mt-4 space-y-4">
                                         <div>
                                             <label htmlFor="new-product-id" className="block text-sm font-medium text-slate-300">
-                                                Código de Item (ID)
+                                                ITEM (ID)
                                             </label>
                                             <input
                                                 type="text"

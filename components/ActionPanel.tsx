@@ -429,7 +429,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
          <div className="rounded-xl border border-white/10 bg-slate-900/70 p-4 shadow-2xl shadow-black/40 backdrop-blur-md">
              <h2 className="mb-4 text-lg font-bold text-slate-200">Importar Entradas</h2>
              <p className="text-sm text-slate-400 mb-4">
-                 Sube un archivo CSV o XLSX con las columnas "CÓDIGO DE ITEM" y "CANTIDAD".
+                 Sube un archivo CSV o XLSX con las columnas "ITEM" y "CANTIDAD".
              </p>
             <input
                 type="file"

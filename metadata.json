@@ -1,5 +1,7 @@
 {
   "name": "Sistema de Control de Inventario Inmunologia Especial",
   "description": "Una completa aplicación de gestión de inventario para realizar un seguimiento de las entradas y salidas de productos, controlar los niveles de existencias y admitir operaciones con datos masivos mediante archivos CSV o Excel.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }

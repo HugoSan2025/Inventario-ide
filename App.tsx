@@ -5,6 +5,7 @@ import ActionPanel from './components/ActionPanel';
 import { Product, Transaction, TransactionType, ProductWithStock, ActiveTab } from './types';
 import { productList, warehouseName } from './data/products';
 import ConfirmModal from './components/ConfirmModal';
+import Chatbot from './components/Chatbot';
 import { db } from './firebaseConfig';
 import { 
     collection, 
@@ -512,6 +513,7 @@ const App: React.FC = () => {
                     />
                 </div>
             </main>
+            <Chatbot productsWithStock={productsWithStock} transactions={transactions} />
         </div>
     );
 };

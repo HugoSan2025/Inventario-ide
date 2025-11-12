@@ -48,9 +48,8 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
             XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
             XLSX.writeFile(workbook, `${sheetName}.xlsx`);
         } else {
-            const csv = Papa.unparse({
-                fields: headers,
-                data: data.map(row => headers.map(header => row[header]))
+            const csv = Papa.unparse(data, {
+                columns: headers,
             });
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
@@ -89,7 +88,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
             <table className="min-w-full divide-y divide-slate-700">
                 <thead className="bg-slate-800/80">
                     <tr>
-                        <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-300 sm:pl-6">CÓDIGO DE ITEM</th>
+                        <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-300 sm:pl-6">ITEM</th>
                         <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-slate-300">STOCK ACTUAL</th>
                         <th scope="col" className="px-3 py-3.5 text-center text-sm font-semibold text-slate-300">NOMBRE DEL PRODUCTO</th>
                         <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-slate-300">SUBALMACÉN</th>
@@ -130,7 +129,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
                         <tr>
                             {isExitTable && <th scope="col" className="w-16 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-slate-300 sm:pl-6">MARCAR</th>}
                             <th scope="col" className={`py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-300 sm:pl-6 ${isExitTable ? 'w-24' : 'w-auto'}`}>FECHA</th>
-                            <th scope="col" className={`px-3 py-3.5 text-left text-sm font-semibold text-slate-300 ${isExitTable ? 'w-28' : 'w-auto'}`}>CÓDIGO DE ITEM</th>
+                            <th scope="col" className={`px-3 py-3.5 text-left text-sm font-semibold text-slate-300 ${isExitTable ? 'w-28' : 'w-auto'}`}>ITEM</th>
                             <th scope="col" className={`px-3 py-3.5 text-center text-sm font-semibold text-slate-300 ${isExitTable ? '' : 'w-auto'}`}>NOMBRE DEL PRODUCTO</th>
                             {isExitTable && <th scope="col" className="w-48 px-3 py-3.5 text-left text-sm font-semibold text-slate-300">SUBALMACÉN</th>}
                             {isExitTable && <th scope="col" className="w-24 pl-5 pr-3 py-3.5 text-left text-sm font-semibold text-slate-300">LOTE</th>}
@@ -200,16 +199,20 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
                     let format: 'xlsx' | 'csv' = 'xlsx';
 
                     if (activeTab === 'stock') {
-                        headers = ["CÓDIGO DE ITEM", "NOMBRE DEL PRODUCTO", "SUBALMACÉN", "STOCK ACTUAL"];
-                        data = inventory.map(p => ({ "CÓDIGO DE ITEM": p.id, "NOMBRE DEL PRODUCTO": p.name, "SUBALMACÉN": p.subwarehouse, "STOCK ACTUAL": p.stock }));
+                        headers = ["ITEM", "NOMBRE DEL PRODUCTO", "SUBALMACÉN", "STOCK ACTUAL"];
+                        data = inventory.map(p => ({ "ITEM": p.id, "NOMBRE DEL PRODUCTO": p.name, "SUBALMACÉN": p.subwarehouse, "STOCK ACTUAL": p.stock }));
                         name = "Reporte_Stock";
                     } else if (activeTab === 'entries') {
-                        headers = ["FECHA", "CÓDIGO DE ITEM", "NOMBRE DEL PRODUCTO", "CANTIDAD"];
-                        data = entryTransactions.map(tx => ({ FECHA: new Date(tx.date).toLocaleDateString(), "CÓDIGO DE ITEM": tx.productId, "NOMBRE DEL PRODUCTO": productMap.get(tx.productId)?.name || "", CANTIDAD: tx.quantity }));
+                        headers = ["FECHA", "ITEM", "NOMBRE DEL PRODUCTO", "CANTIDAD"];
+                        data = entryTransactions.map(tx => ({ FECHA: new Date(tx.date).toLocaleDateString(), "ITEM": tx.productId, "NOMBRE DEL PRODUCTO": productMap.get(tx.productId)?.name || "", CANTIDAD: tx.quantity }));
                         name = "Reporte_Entradas";
                     } else if (activeTab === 'exits') {
-                        headers = ["FECHA", "CÓDIGO DE ITEM", "NOMBRE DEL PRODUCTO", "SUBALMACÉN", "LOTE", "CANTIDAD", "NOTAS"];
-                        data = exitTransactions.map(tx => ({ FECHA: new Date(tx.date).toLocaleDateString(), "CÓDIGO DE ITEM": tx.productId, "NOMBRE DEL PRODUCTO": productMap.get(tx.productId)?.name || "", "SUBALMACÉN": tx.subwarehouse || "", LOTE: tx.batch || "", CANTIDAD: tx.quantity, NOTAS: tx.notes || "" }));
+                        headers = ["ITEM", "LOTE", "CANTIDAD"];
+                        data = exitTransactions.map(tx => ({
+                            "ITEM": `\t${tx.productId}`,
+                            LOTE: tx.batch || "",
+                            CANTIDAD: tx.quantity
+                        }));
                         name = "Reporte_Salidas";
                         format = 'csv';
                     } else {
