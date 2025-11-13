@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import Header from './components/Header';
 import InventoryDashboard from './components/InventoryDashboard';
@@ -586,6 +587,8 @@ const App: React.FC = () => {
                         onSubwarehouseChange={setStockSubwarehouseFilter}
                         products={productsWithStock}
                         catalogProducts={filteredCatalog}
+                        searchQuery={searchQuery}
+                        onSearchChange={setSearchQuery}
                         markedTransactionIds={markedTransactionIds}
                         onToggleMarkTransaction={handleToggleMarkTransaction}
                         onAddProduct={() => setIsAddProductModalOpen(true)}
