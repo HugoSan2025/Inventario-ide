@@ -24,4 +24,4 @@ export interface Transaction {
   notes?: string;
 }
 
-export type ActiveTab = 'stock' | 'entries' | 'exits';
+export type ActiveTab = 'stock' | 'entries' | 'exits' | 'catalog';

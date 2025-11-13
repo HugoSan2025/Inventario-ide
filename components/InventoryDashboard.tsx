@@ -2,7 +2,7 @@ import React from 'react';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import { Product, ProductWithStock, Transaction, ActiveTab } from '../types';
-import { BoxIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, FilterIcon, TrashIcon, CheckCircleIcon } from './icons';
+import { BoxIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, FilterIcon, TrashIcon, CheckCircleIcon, BookOpenIcon, PencilSquareIcon, PlusCircleIcon } from './icons';
 
 interface InventoryDashboardProps {
     inventory: ProductWithStock[];
@@ -15,8 +15,12 @@ interface InventoryDashboardProps {
     selectedSubwarehouse: string;
     onSubwarehouseChange: (subwarehouse: string) => void;
     products: ProductWithStock[];
+    catalogProducts: Product[];
     markedTransactionIds: Set<string>;
     onToggleMarkTransaction: (transactionId: string) => void;
+    onAddProduct: () => void;
+    onEditProduct: (product: Product) => void;
+    onDeleteProduct: (productId: string) => void;
 }
 
 const getStockLevel = (stock: number) => {
@@ -36,8 +40,12 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
     selectedSubwarehouse,
     onSubwarehouseChange,
     products,
+    catalogProducts,
     markedTransactionIds,
     onToggleMarkTransaction,
+    onAddProduct,
+    onEditProduct,
+    onDeleteProduct,
 }) => {
     const productMap = new Map<string, ProductWithStock>(products.map(p => [p.id, p]));
 
@@ -190,6 +198,62 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
             </div>
         )
     };
+    
+    const renderCatalogTable = () => (
+        <div className="p-4 sm:p-6">
+            <div className="sm:flex sm:items-center">
+                <div className="sm:flex-auto">
+                    <h1 className="text-base font-semibold leading-6 text-white">Catálogo de Productos</h1>
+                    <p className="mt-2 text-sm text-gray-400">
+                        Una lista de todos los productos en el sistema. Desde aquí puedes agregar, editar o eliminar productos.
+                    </p>
+                </div>
+                <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+                    <button
+                        type="button"
+                        onClick={onAddProduct}
+                        className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                    >
+                        <PlusCircleIcon className="h-5 w-5" />
+                        Agregar Producto
+                    </button>
+                </div>
+            </div>
+            <div className="mt-8 flow-root overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-700">
+                    <thead className="bg-slate-800/80">
+                        <tr>
+                            <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-300 sm:pl-6">ITEM</th>
+                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-slate-300">NOMBRE DEL PRODUCTO</th>
+                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-slate-300">SUBALMACÉN</th>
+                            <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6"><span className="sr-only">Acciones</span></th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800 bg-slate-900/60">
+                        {catalogProducts.length > 0 ? catalogProducts.map(product => (
+                            <tr key={product.id} className="hover:bg-slate-800/50">
+                                <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-mono text-slate-400 sm:pl-6">{product.id}</td>
+                                <td className="whitespace-nowrap px-3 py-4 text-xs font-bold text-slate-200">{product.name}</td>
+                                <td className="whitespace-nowrap px-3 py-4 text-sm font-bold text-slate-300">{product.subwarehouse}</td>
+                                <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 space-x-4">
+                                    <button onClick={() => onEditProduct(product)} className="text-indigo-400 hover:text-indigo-300" title="Editar Producto">
+                                        <PencilSquareIcon className="h-5 w-5" />
+                                    </button>
+                                    <button onClick={() => onDeleteProduct(product.id)} className="text-slate-400 hover:text-red-500" title="Eliminar Producto">
+                                        <TrashIcon className="h-5 w-5" />
+                                    </button>
+                                </td>
+                            </tr>
+                        )) : (
+                            <tr>
+                                <td colSpan={4} className="py-8 text-center text-slate-400">No hay productos que coincidan con la búsqueda.</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
 
     const exportButtons = (
         <div className="flex items-center gap-2">
@@ -209,7 +273,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
                     } else if (activeTab === 'exits') {
                         headers = ["ITEM", "LOTE", "CANTIDAD"];
                         data = exitTransactions.map(tx => ({
-                            "ITEM": `\t${tx.productId}`,
+                            "ITEM": `="${tx.productId}"`,
                             LOTE: tx.batch || "",
                             CANTIDAD: tx.quantity
                         }));
@@ -235,6 +299,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
                     <TabButton tabName="stock" label="Stock" icon={<BoxIcon className="h-5 w-5" />} />
                     <TabButton tabName="entries" label="Entradas" icon={<ArrowDownTrayIcon className="h-5 w-5" />} />
                     <TabButton tabName="exits" label="Salidas" icon={<ArrowUpTrayIcon className="h-5 w-5" />} />
+                    <TabButton tabName="catalog" label="Catálogo" icon={<BookOpenIcon className="h-5 w-5" />} />
                 </div>
                  <div className="flex items-center gap-4">
                     {activeTab === 'stock' && (
@@ -255,13 +320,14 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
                             </div>
                         </div>
                     )}
-                    {exportButtons}
+                    {['stock', 'entries', 'exits'].includes(activeTab) && exportButtons}
                 </div>
             </div>
-            <div className={activeTab === 'stock' ? '' : 'max-h-[60vh] overflow-y-auto'}>
+            <div className={['entries', 'exits', 'catalog'].includes(activeTab) ? 'max-h-[60vh] overflow-y-auto' : ''}>
                 {activeTab === 'stock' && renderStockTable()}
                 {activeTab === 'entries' && renderTransactionsTable(entryTransactions, 'entry')}
                 {activeTab === 'exits' && renderTransactionsTable(exitTransactions, 'exit')}
+                {activeTab === 'catalog' && renderCatalogTable()}
             </div>
         </div>
     );

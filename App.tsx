@@ -6,6 +6,8 @@ import { Product, Transaction, TransactionType, ProductWithStock, ActiveTab } fr
 import { productList, warehouseName } from './data/products';
 import ConfirmModal from './components/ConfirmModal';
 import Chatbot from './components/Chatbot';
+import AddProductModal from './components/AddProductModal';
+import EditProductModal from './components/EditProductModal';
 import { db } from './firebaseConfig';
 import { 
     collection, 
@@ -135,6 +137,10 @@ const App: React.FC = () => {
         onConfirm: () => {},
     });
 
+    // Modals for Product CRUD
+    const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
     const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
 
     // Filters state
@@ -195,6 +201,15 @@ const App: React.FC = () => {
         }).sort((a, b) => a.name.localeCompare(b.name));
     }, [productsWithStock, searchQuery, stockSubwarehouseFilter, stockLevelFilters]);
     
+    const filteredCatalog = useMemo(() => {
+        return products.filter(product => {
+            const searchLower = searchQuery.toLowerCase();
+            return product.name.toLowerCase().includes(searchLower) ||
+                   product.id.toLowerCase().includes(searchLower) ||
+                   product.subwarehouse.toLowerCase().includes(searchLower);
+        }).sort((a, b) => a.name.localeCompare(b.name));
+    }, [products, searchQuery]);
+
     const entries = useMemo(() => transactions.filter(tx => tx.type === TransactionType.ENTRY), [transactions]);
     const exits = useMemo(() => transactions.filter(tx => tx.type === TransactionType.EXIT), [transactions]);
 
@@ -208,33 +223,43 @@ const App: React.FC = () => {
                                   product.id.toLowerCase().includes(searchLower);
             
             const txDate = new Date(tx.date);
-            const matchesStartDate = !appliedEntryStartDate || txDate >= new Date(appliedEntryStartDate);
-            const matchesEndDate = !appliedEntryEndDate || txDate <= new Date(appliedEntryEndDate);
+            
+            // By appending T00:00:00, we ensure the date is parsed in the user's local timezone.
+            const matchesStartDate = !appliedEntryStartDate || txDate >= new Date(`${appliedEntryStartDate}T00:00:00`);
+            
+            // To include the entire end day, we check against 23:59:59.999 of that day.
+            const matchesEndDate = !appliedEntryEndDate || txDate <= new Date(`${appliedEntryEndDate}T23:59:59.999`);
 
             return matchesSearch && matchesStartDate && matchesEndDate;
         });
     }, [entries, searchQuery, productMap, appliedEntryStartDate, appliedEntryEndDate]);
 
     const filteredExits = useMemo(() => {
-        return exits.filter(tx => {
-            const product = productMap.get(tx.productId);
-            if (!product) return false;
+        return exits
+            .filter(tx => {
+                const product = productMap.get(tx.productId);
+                if (!product) return false;
 
-            const searchLower = searchQuery.toLowerCase();
-            const matchesSearch = product.name.toLowerCase().includes(searchLower) ||
-                                  product.id.toLowerCase().includes(searchLower) ||
-                                  (tx.batch && tx.batch.toLowerCase().includes(searchLower)) ||
-                                  (tx.notes && tx.notes.toLowerCase().includes(searchLower)) ||
-                                  (tx.subwarehouse && tx.subwarehouse.toLowerCase().includes(searchLower));
-            
-            const matchesSubwarehouse = appliedExitSubwarehouseFilter === 'all' || tx.subwarehouse === appliedExitSubwarehouseFilter;
-            
-            const txDate = new Date(tx.date);
-            const matchesStartDate = !appliedExitStartDate || txDate >= new Date(appliedExitStartDate);
-            const matchesEndDate = !appliedExitEndDate || txDate <= new Date(appliedExitEndDate);
+                const searchLower = searchQuery.toLowerCase();
+                const matchesSearch = product.name.toLowerCase().includes(searchLower) ||
+                                      product.id.toLowerCase().includes(searchLower) ||
+                                      (tx.batch && tx.batch.toLowerCase().includes(searchLower)) ||
+                                      (tx.notes && tx.notes.toLowerCase().includes(searchLower)) ||
+                                      (tx.subwarehouse && tx.subwarehouse.toLowerCase().includes(searchLower));
+                
+                const matchesSubwarehouse = appliedExitSubwarehouseFilter === 'all' || tx.subwarehouse === appliedExitSubwarehouseFilter;
+                
+                const txDate = new Date(tx.date);
 
-            return matchesSearch && matchesSubwarehouse && matchesStartDate && matchesEndDate;
-        });
+                // By appending T00:00:00, we ensure the date is parsed in the user's local timezone.
+                const matchesStartDate = !appliedExitStartDate || txDate >= new Date(`${appliedExitStartDate}T00:00:00`);
+
+                // To include the entire end day, we check against 23:59:59.999 of that day.
+                const matchesEndDate = !appliedExitEndDate || txDate <= new Date(`${appliedExitEndDate}T23:59:59.999`);
+
+                return matchesSearch && matchesSubwarehouse && matchesStartDate && matchesEndDate;
+            })
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [exits, searchQuery, productMap, appliedExitSubwarehouseFilter, appliedExitStartDate, appliedExitEndDate]);
 
 
@@ -425,6 +450,69 @@ const App: React.FC = () => {
         });
     }, []);
 
+    // CRUD Handlers for Products
+    const handleSaveNewProduct = useCallback(async (newProduct: Product) => {
+        try {
+            const productRef = doc(db, productsCollectionName, newProduct.id);
+            await setDoc(productRef, newProduct);
+            setIsAddProductModalOpen(false);
+        } catch (error) {
+            console.error("Error adding new product:", error);
+            // Optionally show error modal
+        }
+    }, [productsCollectionName]);
+
+    const handleSaveEditedProduct = useCallback(async (editedProduct: Product) => {
+        try {
+            const productRef = doc(db, productsCollectionName, editedProduct.id);
+            await setDoc(productRef, editedProduct, { merge: true });
+            setEditingProduct(null);
+        } catch (error) {
+            console.error("Error updating product:", error);
+            // Optionally show error modal
+        }
+    }, [productsCollectionName]);
+
+    const handleDeleteProduct = useCallback((productId: string) => {
+        const productToDelete = products.find(p => p.id === productId);
+        const hasTransactions = transactions.some(tx => tx.productId === productId);
+
+        if (hasTransactions) {
+            setModalState({
+                isOpen: true,
+                title: 'Eliminación Bloqueada',
+                message: (
+                    <>
+                        El producto <strong>{productToDelete?.name || productId}</strong> no se puede eliminar.
+                        <p className="mt-2 text-sm text-slate-400">
+                            Tiene transacciones de entrada o salida registradas. Para mantener la integridad del historial, primero debe eliminar todas las transacciones asociadas a este producto.
+                        </p>
+                    </>
+                ),
+                onConfirm: closeModal,
+                confirmText: 'Entendido',
+                showCancelButton: false,
+            });
+            return;
+        }
+
+        setModalState({
+            isOpen: true,
+            title: 'Confirmar Eliminación de Producto',
+            message: `¿Está seguro de que desea eliminar el producto "${productToDelete?.name || productId}"? Esta acción no se puede deshacer.`,
+            onConfirm: async () => {
+                try {
+                    await deleteDoc(doc(db, productsCollectionName, productId));
+                    closeModal();
+                } catch (error) {
+                    console.error("Error deleting product:", error);
+                    closeModal();
+                }
+            },
+        });
+    }, [transactions, products, productsCollectionName]);
+
+
     const handleApplyEntryFilters = () => {
         setAppliedEntryStartDate(entryStartDate);
         setAppliedEntryEndDate(entryEndDate);
@@ -451,8 +539,10 @@ const App: React.FC = () => {
     
     useEffect(() => {
       setSearchQuery('');
-      setStockSubwarehouseFilter('all');
-      setStockLevelFilters(new Set());
+      if (activeTab === 'stock') {
+        setStockSubwarehouseFilter('all');
+        setStockLevelFilters(new Set());
+      }
     }, [activeTab]);
 
     return (
@@ -467,9 +557,23 @@ const App: React.FC = () => {
             >
                 {modalState.message}
             </ConfirmModal>
+
+            <AddProductModal
+                isOpen={isAddProductModalOpen}
+                onSave={handleSaveNewProduct}
+                onCancel={() => setIsAddProductModalOpen(false)}
+                existingProductIds={products.map(p => p.id)}
+            />
+
+            <EditProductModal
+                product={editingProduct}
+                onSave={handleSaveEditedProduct}
+                onCancel={() => setEditingProduct(null)}
+            />
+
             <Header warehouseName={warehouseName} />
             <main className="mx-auto mt-6 grid max-w-screen-2xl grid-cols-1 gap-6 lg:grid-cols-4">
-                <div className="lg:col-span-3">
+                <div className={activeTab === 'catalog' ? "lg:col-span-4" : "lg:col-span-3"}>
                     <InventoryDashboard
                         inventory={filteredInventory}
                         entryTransactions={filteredEntries}
@@ -481,37 +585,43 @@ const App: React.FC = () => {
                         selectedSubwarehouse={stockSubwarehouseFilter}
                         onSubwarehouseChange={setStockSubwarehouseFilter}
                         products={productsWithStock}
+                        catalogProducts={filteredCatalog}
                         markedTransactionIds={markedTransactionIds}
                         onToggleMarkTransaction={handleToggleMarkTransaction}
+                        onAddProduct={() => setIsAddProductModalOpen(true)}
+                        onEditProduct={setEditingProduct}
+                        onDeleteProduct={handleDeleteProduct}
                     />
                 </div>
-                <div className="lg:col-span-1">
-                    <ActionPanel
-                        products={products}
-                        onNewTransaction={handleNewTransaction}
-                        onFileUpload={handleFileUpload}
-                        searchQuery={searchQuery}
-                        onSearchChange={setSearchQuery}
-                        activeTab={activeTab}
-                        uniqueSubwarehouses={uniqueSubwarehouses}
-                        exitSubwarehouseFilter={exitSubwarehouseFilter}
-                        onExitSubwarehouseChange={setExitSubwarehouseFilter}
-                        exitStartDate={exitStartDate}
-                        onExitStartDateChange={setExitStartDate}
-                        exitEndDate={exitEndDate}
-                        onExitEndDateChange={setExitEndDate}
-                        entryStartDate={entryStartDate}
-                        onEntryStartDateChange={setEntryStartDate}
-                        entryEndDate={entryEndDate}
-                        onEntryEndDateChange={setEntryEndDate}
-                        onApplyEntryFilters={handleApplyEntryFilters}
-                        onClearEntryFilters={handleClearEntryFilters}
-                        onApplyExitFilters={handleApplyExitFilters}
-                        onClearExitFilters={handleClearExitFilters}
-                        stockLevelFilters={stockLevelFilters}
-                        onStockLevelChange={setStockLevelFilters}
-                    />
-                </div>
+                {activeTab !== 'catalog' &&
+                    <div className="lg:col-span-1">
+                        <ActionPanel
+                            products={products}
+                            onNewTransaction={handleNewTransaction}
+                            onFileUpload={handleFileUpload}
+                            searchQuery={searchQuery}
+                            onSearchChange={setSearchQuery}
+                            activeTab={activeTab}
+                            uniqueSubwarehouses={uniqueSubwarehouses}
+                            exitSubwarehouseFilter={exitSubwarehouseFilter}
+                            onExitSubwarehouseChange={setExitSubwarehouseFilter}
+                            exitStartDate={exitStartDate}
+                            onExitStartDateChange={setExitStartDate}
+                            exitEndDate={exitEndDate}
+                            onExitEndDateChange={setExitEndDate}
+                            entryStartDate={entryStartDate}
+                            onEntryStartDateChange={setEntryStartDate}
+                            entryEndDate={entryEndDate}
+                            onEntryEndDateChange={setEntryEndDate}
+                            onApplyEntryFilters={handleApplyEntryFilters}
+                            onClearEntryFilters={handleClearEntryFilters}
+                            onApplyExitFilters={handleApplyExitFilters}
+                            onClearExitFilters={handleClearExitFilters}
+                            stockLevelFilters={stockLevelFilters}
+                            onStockLevelChange={setStockLevelFilters}
+                        />
+                    </div>
+                }
             </main>
             <Chatbot productsWithStock={productsWithStock} transactions={transactions} />
         </div>
