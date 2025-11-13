@@ -54,7 +54,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
 }) => {
     const productMap = new Map<string, ProductWithStock>(products.map(p => [p.id, p]));
 
-    const handleExport = (format: 'xlsx' | 'csv', data: any[], headers: string[], sheetName: string) => {
+    const handleExport = (format: 'xlsx' | 'csv', data: any[], headers: string[], sheetName: string, csvConfig?: object) => {
         if (format === 'xlsx') {
             const worksheet = XLSX.utils.json_to_sheet(data, { header: headers });
             const workbook = XLSX.utils.book_new();
@@ -63,6 +63,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
         } else {
             const csv = Papa.unparse(data, {
                 columns: headers,
+                ...csvConfig
             });
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
@@ -215,23 +216,25 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
                         headers = ["ITEM", "NOMBRE DEL PRODUCTO", "SUBALMACÉN", "STOCK ACTUAL"];
                         data = inventory.map(p => ({ "ITEM": p.id, "NOMBRE DEL PRODUCTO": p.name, "SUBALMACÉN": p.subwarehouse, "STOCK ACTUAL": p.stock }));
                         name = "Reporte_Stock";
+                        handleExport(format, data, headers, name);
                     } else if (activeTab === 'entries') {
                         headers = ["FECHA", "ITEM", "NOMBRE DEL PRODUCTO", "CANTIDAD"];
                         data = entryTransactions.map(tx => ({ FECHA: new Date(tx.date).toLocaleDateString(), "ITEM": tx.productId, "NOMBRE DEL PRODUCTO": productMap.get(tx.productId)?.name || "", CANTIDAD: tx.quantity }));
                         name = "Reporte_Entradas";
+                        handleExport(format, data, headers, name);
                     } else if (activeTab === 'exits') {
                         headers = ["ITEM", "LOTE", "CANTIDAD"];
                         data = exitTransactions.map(tx => ({
-                            "ITEM": `="${tx.productId}"`,
+                            "ITEM": parseInt(tx.productId, 10),
                             LOTE: tx.batch || "",
                             CANTIDAD: tx.quantity
                         }));
                         name = "Reporte_Salidas";
                         format = 'csv';
+                        handleExport(format, data, headers, name, { header: false });
                     } else {
                         return; // Should not happen with current ActiveTab type
                     }
-                    handleExport(format, data, headers, name);
                 }}
                 className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             >
