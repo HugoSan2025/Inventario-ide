@@ -224,11 +224,13 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
                         handleExport(format, data, headers, name);
                     } else if (activeTab === 'exits') {
                         headers = ["ITEM", "LOTE", "CANTIDAD"];
-                        data = exitTransactions.map(tx => ({
-                            "ITEM": parseInt(tx.productId, 10),
-                            LOTE: tx.batch || "",
-                            CANTIDAD: tx.quantity
-                        }));
+                        data = exitTransactions
+                            .filter(tx => !markedTransactionIds.has(tx.id))
+                            .map(tx => ({
+                                "ITEM": parseInt(tx.productId, 10),
+                                LOTE: tx.batch || "",
+                                CANTIDAD: tx.quantity
+                            }));
                         name = "Reporte_Salidas";
                         format = 'csv';
                         handleExport(format, data, headers, name, { header: false });
